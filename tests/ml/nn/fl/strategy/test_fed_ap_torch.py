@@ -6,9 +6,9 @@ from torchmetrics import Accuracy, Precision, Recall
 from secretflow.ml.nn.fl.backend.torch.strategy.fed_ap import FedAP
 from tests.ml.nn.fl.model_def import ConvNet
 
+
 class TestFedAP:
     def test_fed_ap_local_step(self, sf_simulation_setup_devices):
-
         class ConvNetBuilder:
             def __init__(self):
                 self.metrics = [
@@ -30,8 +30,12 @@ class TestFedAP:
 
         # Prepare dataset
         x_test = torch.rand(128, 1, 28, 28)  # Randomly generated data
-        y_test = torch.randint(0, 10, (128,))  # Randomly generated labels for a 10-class task
-        test_loader = DataLoader(TensorDataset(x_test, y_test), batch_size=32, shuffle=True)
+        y_test = torch.randint(
+            0, 10, (128,)
+        )  # Randomly generated labels for a 10-class task
+        test_loader = DataLoader(
+            TensorDataset(x_test, y_test), batch_size=32, shuffle=True
+        )
         fed_ap_worker.train_set = iter(test_loader)
         fed_ap_worker.train_iter = iter(fed_ap_worker.train_set)
 
@@ -46,9 +50,10 @@ class TestFedAP:
 
         # Assert the sample number and length of weights
         assert num_sample == 32  # Batch size
-        assert len(weights) == len(list(fed_ap_worker.model.parameters()))  # Number of model parameters
+        assert len(weights) == len(
+            list(fed_ap_worker.model.parameters())
+        )  # Number of model parameters
 
         # Perform another training step to test cumulative behavior
         _, num_sample = fed_ap_worker.train_step(weights, cur_steps=1, train_steps=2)
         assert num_sample == 64  # Cumulative batch size over two steps
-

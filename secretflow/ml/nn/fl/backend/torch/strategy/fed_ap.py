@@ -8,14 +8,15 @@ from secretflow.ml.nn.fl.strategy_dispatcher import register_strategy
 
 
 class FedAP(BaseTorchModel):
-
     def update_weights_without_bn(self, weights):
         """
         Update model weights, but exclude Batch Normalization (BN) layers.
         Args:
             weights: global weight from params server
         """
-        state_dict = self.model.state_dict()  # Get the state dictionary of the current model
+        state_dict = (
+            self.model.state_dict()
+        )  # Get the state dictionary of the current model
         weights_dict = {}
 
         for k, v in zip(state_dict.keys(), weights):
@@ -26,13 +27,12 @@ class FedAP(BaseTorchModel):
         state_dict.update(weights_dict)
         self.model.load_state_dict(state_dict)
 
-
     def train_step(
-            self,
-            weights: np.ndarray,
-            cur_steps: int,
-            train_steps: int,
-            **kwargs,
+        self,
+        weights: np.ndarray,
+        cur_steps: int,
+        train_steps: int,
+        **kwargs,
     ) -> Tuple[np.ndarray, int]:
         """Accept ps model params, then do local train
 
@@ -83,7 +83,6 @@ class FedAP(BaseTorchModel):
                 model_weights = dp_strategy.model_gdp(model_weights)
         return model_weights, num_sample
 
-
     def apply_weights(self, weights):
         """Accept ps model params, then update local model
 
@@ -92,6 +91,7 @@ class FedAP(BaseTorchModel):
         """
         if weights is not None:
             self.update_weights_without_bn(weights)
+
 
 @register_strategy(strategy_name='fed_ap', backend='torch')
 class PYUFedAP(FedAP):

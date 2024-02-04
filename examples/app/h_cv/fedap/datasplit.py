@@ -1,10 +1,11 @@
-#coding=utf-8
+# coding=utf-8
 import numpy as np
 import torch
 import torch.distributed as dist
 
+
 class Partition(object):
-    """ Dataset-like object, but only access a subset of it. """
+    """Dataset-like object, but only access a subset of it."""
 
     def __init__(self, data, indices):
         self.data = data
@@ -16,7 +17,7 @@ class Partition(object):
 
     def __getitem__(self, index):
         data_idx = self.indices[index]
-        return (self.data[data_idx][0],self.data[data_idx][1])
+        return (self.data[data_idx][0], self.data[data_idx][1])
 
     def update_replaced_targets(self, replaced_targets):
         self.replaced_targets = replaced_targets
@@ -29,8 +30,8 @@ class Partition(object):
                 count += 1
         return count / len(replaced_targets)
 
-    def set_targets(self,replaced_targets):
-        self.replaced_targets=replaced_targets
+    def set_targets(self, replaced_targets):
+        self.replaced_targets = replaced_targets
 
     def get_targets(self):
         return self.replaced_targets
@@ -38,8 +39,9 @@ class Partition(object):
     def clean_replaced_targets(self):
         self.replaced_targets = None
 
+
 class DataPartitioner(object):
-    """ Partitions a dataset into different chuncks. """
+    """Partitions a dataset into different chuncks."""
 
     def __init__(
         self, conf, data, partition_sizes, partition_type, consistent_indices=True
@@ -63,27 +65,31 @@ class DataPartitioner(object):
         indices = self._create_indices(indices)
         if self.consistent_indices:
             indices = self._get_consistent_indices(indices)
-        if self.partition_type=='evenlysplit':
-            classes=np.unique(self.data.targets)
-            lp=len(self.partition_sizes)
-            ti=indices[:,0]
-            ttar=indices[:,1]
+        if self.partition_type == 'evenlysplit':
+            classes = np.unique(self.data.targets)
+            lp = len(self.partition_sizes)
+            ti = indices[:, 0]
+            ttar = indices[:, 1]
             for i in range(lp):
                 self.partitions.append(np.array([]))
             for c in classes:
-                tindice=np.where(ttar==c)[0]
-                lti=len(tindice)
+                tindice = np.where(ttar == c)[0]
+                lti = len(tindice)
                 from_index = 0
                 for i in range(lp):
-                    partition_size=self.partition_sizes[i]
+                    partition_size = self.partition_sizes[i]
                     to_index = from_index + int(partition_size * lti)
-                    if i==(lp-1):
-                        self.partitions[i]=np.hstack((self.partitions[i],ti[tindice[from_index:]]))
+                    if i == (lp - 1):
+                        self.partitions[i] = np.hstack(
+                            (self.partitions[i], ti[tindice[from_index:]])
+                        )
                     else:
-                        self.partitions[i]=np.hstack((self.partitions[i],ti[tindice[from_index:to_index]]))
-                    from_index=to_index
+                        self.partitions[i] = np.hstack(
+                            (self.partitions[i], ti[tindice[from_index:to_index]])
+                        )
+                    from_index = to_index
             for i in range(lp):
-                self.partitions[i]=self.partitions[i].astype(np.int).tolist()
+                self.partitions[i] = self.partitions[i].astype(np.int).tolist()
         else:
             from_index = 0
             for partition_size in self.partition_sizes:
@@ -96,12 +102,14 @@ class DataPartitioner(object):
             pass
         elif self.partition_type == "random":
             self.conf.random_state.shuffle(indices)
-        elif self.partition_type=='evenlysplit':
-            indices =np.array([
-                (idx, target)
-                for idx, target in enumerate(self.data.targets)
-                if idx in indices
-            ])
+        elif self.partition_type == 'evenlysplit':
+            indices = np.array(
+                [
+                    (idx, target)
+                    for idx, target in enumerate(self.data.targets)
+                    if idx in indices
+                ]
+            )
         return indices
 
     def _get_consistent_indices(self, indices):
@@ -116,7 +124,7 @@ class DataPartitioner(object):
         return Partition(self.data, self.partitions[partition_ind])
 
 
-def define_data_loader(conf, dataset,data_partitioner=None):
+def define_data_loader(conf, dataset, data_partitioner=None):
     world_size = conf.n_clients
     partition_sizes = [1.0 / world_size for _ in range(world_size)]
     if data_partitioner is None:
@@ -125,23 +133,22 @@ def define_data_loader(conf, dataset,data_partitioner=None):
         )
     return data_partitioner
 
-def getdataloader1(conf,dataall,root_dir='./split/'):
-    file=root_dir+conf.data+'/partion_'+str(conf.non_iid_alpha)+'.npy'
-    conf.partition_data='origin'
-    data_part=define_data_loader(conf,dataall)
-    data_part.partitions=np.load(file,allow_pickle=True).tolist()
-    clienttrain_list=[]
-    clienttest_list=[]
+
+def getdataloader1(conf, dataall, root_dir='./split/'):
+    file = root_dir + conf.data + '/partion_' + str(conf.non_iid_alpha) + '.npy'
+    conf.partition_data = 'origin'
+    data_part = define_data_loader(conf, dataall)
+    data_part.partitions = np.load(file, allow_pickle=True).tolist()
+    clienttrain_list = []
+    clienttest_list = []
     for i in range(conf.n_clients):
-        clienttrain_list.append(data_part.use(2*i))
-        clienttest_list.append(data_part.use(2*i+1))
-    return clienttrain_list,clienttest_list
+        clienttrain_list.append(data_part.use(2 * i))
+        clienttest_list.append(data_part.use(2 * i + 1))
+    return clienttrain_list, clienttest_list
 
 
 def define_pretrain_dataset(conf, train_dataset):
-    partition_sizes = [
-        0.3,0.7
-    ]
+    partition_sizes = [0.3, 0.7]
     data_partitioner = DataPartitioner(
         conf,
         train_dataset,
